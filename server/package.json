@@ -1,0 +1,22 @@
+{
+  "name": "secure_chat_server",
+  "version": "1.0.0",
+  "description": "A server about the secure chat",
+  "main": "app.js",
+  "scripts": {
+    "test": "node app.js"
+  },
+  "author": "syang",
+  "license": "MIT",
+  "dependencies": {
+    "bcrypt": "^2.0.1",
+    "koa": "^2.5.1",
+    "koa-bodyparser": "^4.2.1",
+    "koa-router": "^7.4.0",
+    "mysql2": "^1.5.3",
+    "node-rsa": "^1.0.0",
+    "sequelize": "^4.37.10",
+    "socket.io": "^2.1.1",
+    "xxtea-node": "^1.1.2"
+  }
+}
