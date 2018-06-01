@@ -40,7 +40,7 @@ module.exports = {
          if (!email || !password) {
             throw new APIError('login:wrong arguments!');        
         }
-        const user = await DB.getUser(email, ['id', 'passwd', 'privateKey']);
+        const user = await DB.getUser(email, ['id', 'passwd', 'publicKey', 'privateKey']);
         if (!user) {
             throw new APIError('login:user doesn\'t exist!');
         }
@@ -50,6 +50,7 @@ module.exports = {
         
         ctx.rest({
             id: user.id,
+            publicKey: user.publicKey,
             privateKey: user.privateKey
         });
 
