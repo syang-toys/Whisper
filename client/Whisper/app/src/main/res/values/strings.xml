@@ -1,0 +1,44 @@
+<resources>
+    <string name="app_name">Whisper</string>
+    <string name="title">Keep Your Secret 💬</string>
+
+    <string name="login_title">Enjoy Whisper ❤</string>
+    <string name="register_title">Begin Whisper ⚡</string>
+
+    <string name="action_settings">Settings</string>
+
+    <string name="email_hint">Email</string>
+    <string name="password_hint">Password</string>
+    <string name="signin">Sign In</string>
+    <string name="signup_link">Don\'t have an account? Sign up</string>
+    <string name="forgot_password">Forgot Password</string>
+
+    <string name="hello_blank_fragment">Hello blank fragment</string>
+    <string name="full_name">Full Name</string>
+    <string name="confirm_password">Confirm Password</string>
+    <string name="sign_up">Sign Up</string>
+    <string name="signin_link">Already have an account? Sign in</string>
+    <string name="reset_password">Reset Password</string>
+    <string name="remember_password">Remember your password? Login</string>
+
+    <!-- Hint Message -->
+    <string name="ok">ok</string>
+    <string name="oc">very oc</string>
+    <!-- Success -->
+    <string name="success">Success</string>
+    <string name="register_success">Register Success! Welcome to Whisper 😊</string>
+    <!-- Failed -->
+    <string name="login_failed">Login Failed!</string>
+    <string name="register_failed">Register Failed!</string>
+    <!-- Error -->
+    <string name="network_error">Network Error! Plz confirm your network!</string>
+    <string name="parse_error">Parse Error!</string>
+    <string name="title_activity_main">MainActivity</string>
+
+
+    <string name="tab_add">Add More</string>
+    <string name="tab_friends">Friends</string>
+
+    <string name="accept">accept</string>
+    <string name="deny">deny</string>
+</resources>

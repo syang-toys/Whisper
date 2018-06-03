@@ -37,13 +37,16 @@ module.exports = {
 
     'POST /api/login': async (ctx, next) => {
         const { email, password } = ctx.request.body;
-         if (!email || !password) {
+        
+        if (!email || !password) {
             throw new APIError('login:wrong arguments!');        
         }
+
         const user = await DB.getUser(email, ['id', 'passwd', 'publicKey', 'privateKey']);
         if (!user) {
             throw new APIError('login:user doesn\'t exist!');
         }
+        
         if(!await bcrypt.compare(password, user.passwd)) {
             throw new APIError('login:wrong password');            
         }
@@ -51,7 +54,7 @@ module.exports = {
         ctx.rest({
             id: user.id,
             publicKey: user.publicKey,
-            privateKey: user.privateKey
+            privateKey: crypto.decrypt('xxtea', user.privateKey, user.passwd)
         });
 
         await next();

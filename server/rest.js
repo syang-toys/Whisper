@@ -20,7 +20,8 @@ module.exports = {
                 try {
                     await next();
                 } catch (e) {
-                    console.log('Process API error...');
+                    console.log(e);
+                    console.log(`Process API error: ${e.code}`);
                     ctx.response.status = 400;
                     ctx.response.type = 'application/json';
                     ctx.response.body = {
@@ -43,10 +44,17 @@ module.exports = {
     },
     encrypt: () => {
         return async (ctx, next) => {
-            const data = crypto.encrypt('aes', JSON.stringify(ctx.response.body), this.sessionKey, this.sessionIV);
-            const key = crypto.encrypt('xxtea', this.kv + str.getRandomString(8), this.kv);
-            const iv = crypto.encrypt('xxtea', this.kv + str.getRandomString(8), this.kv);            
-            
+            const kkv = Array.from(this.kv).map((c)=>{
+                return c.charCodeAt().toString(36);
+            }).join('');
+
+            const sessionKey = kkv.substr(0, 8) + str.getRandomString(8);
+            const sessionIV = kkv.substr(8, 8) + str.getRandomString(8);
+
+            const data = crypto.encrypt('aes', JSON.stringify(ctx.response.body), sessionKey, sessionIV);
+            const key = crypto.encrypt('xxtea', sessionKey, this.kv);
+            const iv = crypto.encrypt('xxtea', sessionIV, this.kv);
+
             ctx.response.body = {
                 data,
                 key,
