@@ -6,13 +6,22 @@ module.exports = {
         return await Friend.findOne({
             attributes: ['valid'],
             where: {
-                id1,
-                id2
+                $or: [{
+                    id1: id1,
+                    id2: id2
+                }, {
+                    id1: id2,
+                    id2: id1
+                }]
             }
         });
     },
     createFriend: async (id1, id2) => {
-        await Friend.create({id1, id2, valid: true});
+        await Friend.create({
+            id1,
+            id2,
+            valid: true
+        });
     },
     getUser: async (email, attributes) => {
         const query = {
@@ -20,12 +29,31 @@ module.exports = {
                 email
             }
         }
-        if(attributes) {
+        if (attributes) {
+            query.attributes = attributes;
+        }
+        return await User.findOne(query);
+    },
+    getUserById: async (id, attributes) => {
+        const query = {
+            where: {
+                id
+            }
+        }
+        if (attributes) {
             query.attributes = attributes;
         }
         return await User.findOne(query);
     },
     createUser: async (user) => {
         await User.create(user);
+    },
+    getFriends: async (id) => {
+        const friends = await Friend.findAll({ where: { $or: [{ id1: id }, { id2: id }], valid: true } });
+        return friends.map((friend)=>{
+            return friend.id1 === id ? friend.id2 : friend.id1
+        }).map(async (friendId)=>{
+            return await getUserById(friendId, ['id', 'email', 'publicKey']);
+        });
     }
 }

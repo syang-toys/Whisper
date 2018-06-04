@@ -5,7 +5,7 @@ use whisper;
 create table users(
     userid int(32) not null primary key auto_increment,
     email varchar(64) not null unique key,
-    passwd varchar(32) not null,
+    passwd varchar(64) not null,
     publickey text not null,
     privatekey text not null
 );
