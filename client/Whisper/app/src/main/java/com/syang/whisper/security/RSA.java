@@ -1,18 +1,30 @@
-package com.syang.whisper.crypto;
+package com.syang.whisper.security;
 
 import android.util.Base64;
 
 import java.security.Key;
-import java.security.interfaces.RSAPublicKey;
+import java.security.PublicKey;
 
 import javax.crypto.Cipher;
 
 public class RSA {
     private static final String ALGORITHM = "RSA/NONE/PKCS1Padding";
+    private static PublicKey mDefaultPublicKey;
 
-    public static String
-    Base64Encrypt(String data, Key key) {
+    public static void setDefaultPublicKey(PublicKey publicKey) {
+        mDefaultPublicKey = publicKey;
+    }
+
+    public static String Base64Encrypt(String data) {
+        return Base64Encrypt(data, mDefaultPublicKey);
+    }
+
+    public static String Base64Encrypt(String data, Key key) {
         return Base64.encodeToString(encrypt(data, key), Base64.DEFAULT);
+    }
+
+    public static String Base64Decrypt(String data) {
+        return Base64Decrypt(data, mDefaultPublicKey);
     }
 
     public static String Base64Decrypt(String data, Key key) {

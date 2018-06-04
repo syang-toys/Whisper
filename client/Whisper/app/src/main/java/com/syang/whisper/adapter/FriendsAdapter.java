@@ -47,7 +47,7 @@ public class FriendsAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
         holder.mItemTextView.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                User user = friends.get(holder.getAdapterPosition());
+                User user = friends.get(holder.getAdapterPosition() - 1);
                 Intent intent = new Intent(context, ChatActivity.class);
                 intent.putExtra("user_data", user);
                 context.startActivity(intent);

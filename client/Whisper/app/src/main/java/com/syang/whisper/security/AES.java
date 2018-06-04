@@ -1,4 +1,4 @@
-package com.syang.whisper.crypto;
+package com.syang.whisper.security;
 
 import android.util.Base64;
 

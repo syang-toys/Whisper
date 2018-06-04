@@ -6,14 +6,13 @@ import android.support.annotation.Nullable;
 import com.github.bassaer.chatmessageview.model.IChatUser;
 
 import java.io.Serializable;
-import java.security.interfaces.RSAPrivateKey;
-import java.security.interfaces.RSAPublicKey;
+import java.security.PublicKey;
 
 public class User implements IChatUser, Serializable {
     private int id;
     private Bitmap icon;
     private String email;
-    private RSAPublicKey mPublicKey;
+    private PublicKey mPublicKey;
 
     public User(){
     }
@@ -23,7 +22,7 @@ public class User implements IChatUser, Serializable {
         this.email = email;
     }
 
-    public User(int id, String email, RSAPublicKey publicKey) {
+    public User(int id, String email, PublicKey publicKey) {
         this(id, email);
         this.mPublicKey = publicKey;
     }
@@ -63,13 +62,16 @@ public class User implements IChatUser, Serializable {
         this.icon = icon;
     }
 
-    public RSAPublicKey getPublicKey() {
+    public PublicKey getPublicKey() {
         return mPublicKey;
     }
 
-    public void setPublicKey(RSAPublicKey publicKey) {
+    public void setPublicKey(PublicKey publicKey) {
         mPublicKey = publicKey;
     }
 
-
+    public static User newInstance() {
+        User user = new User();
+        return user;
+    }
 }

@@ -1,4 +1,4 @@
-package com.syang.whisper.crypto;
+package com.syang.whisper.security;
 
 import org.xxtea.XXTEA;
 
@@ -14,6 +14,11 @@ public class XXTea {
     public static byte[] encrypt(String data, String key) {
         return XXTEA.encrypt(data, key);
     }
+
+    public static byte[] encrypt(byte[] data, String key) {
+        return XXTEA.encrypt(data, key);
+    }
+
 
     public static String decrypt(byte[] data, String key) {
         return XXTEA.decryptToString(data, key);

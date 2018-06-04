@@ -33,7 +33,8 @@
     <!-- Error -->
     <string name="network_error">Network Error! Plz confirm your network!</string>
     <string name="parse_error">Parse Error!</string>
-    <string name="title_activity_main">MainActivity</string>
+    <string name="read_file_error">Read File Error</string>
+    <string name="file_choose_error">Need to choose the file!</string>
 
 
     <string name="tab_add">Add More</string>
@@ -41,4 +42,8 @@
 
     <string name="accept">accept</string>
     <string name="deny">deny</string>
+
+    <string name="options">Options</string>
+    <string name="send_picture">Send Picture</string>
+    <string name="send_file">Send File</string>
 </resources>

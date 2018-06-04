@@ -18,7 +18,7 @@ module.exports = {
 
         const passwd = await bcrypt.hash(password, 10);
         const key = new NodeRSA({ b: 2048 });
-        const privateKey = crypto.encrypt('xxtea', key.exportKey('private'), passwd);
+        const privateKey = crypto.encrypt('xxtea', key.exportKey('private'), password);
         const publicKey = key.exportKey('public');
 
         const user = {

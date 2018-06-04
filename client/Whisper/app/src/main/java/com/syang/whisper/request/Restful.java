@@ -1,8 +1,8 @@
 package com.syang.whisper.request;
 
-import com.syang.whisper.crypto.AES;
-import com.syang.whisper.crypto.RSA;
-import com.syang.whisper.crypto.XXTea;
+import com.syang.whisper.security.AES;
+import com.syang.whisper.security.RSA;
+import com.syang.whisper.security.XXTea;
 
 import org.apache.commons.lang3.RandomStringUtils;
 import org.json.JSONException;

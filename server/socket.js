@@ -46,12 +46,11 @@ module.exports = io => {
         });
 
         socket.on('friend request', async (key, data, ack) => {
-
             const friendEmail = serverDecrypt(key, data);
 
             const friend = await db.getUser(friendEmail, ['id, publicKey']);
             if (!friend) {
-                ack(serverEncrypt(socket.id, 'no such user!'));
+                ack(...serverEncrypt(socket.id, 'no such user!'));
                 return;
             }
 
@@ -60,7 +59,7 @@ module.exports = io => {
             const valid = await db.isFriend(self.id, friend.id);
 
             if (valid) {
-                ack(serverEncrypt(socket.id, 'already being friends!'));
+                ack(...serverEncrypt(socket.id, 'already being friends!'));
                 return;
             }
 
@@ -70,6 +69,8 @@ module.exports = io => {
                 const secret = serverEncrypt(friendClientId, email);
                 io.to(friendClientId).emit('new friend request', secret[0], secret[1]);
             }
+
+            ack(...serverEncrypt(socket.id, 'send friend request successfully!'));
         });
 
         socket.on('accept friend request', async (key, data, ack) => {
@@ -83,7 +84,7 @@ module.exports = io => {
 
             const user = {id: friend.id, email: friendEmail, publicKey: friend.publicKey};
             
-            ack(serverEncrypt(socket.id, JSON.stringify(user)));
+            ack(...serverEncrypt(socket.id, JSON.stringify(user)));
 
             const friendClientId = userSocketMap.get(friend.id);
 
@@ -103,7 +104,7 @@ module.exports = io => {
 
             const friendClientId = userSocketMap.get(id);
             if (friendClientId === undefined) {
-                ack(serverEncrypt(socket.id, 'friend not online!'));
+                ack(...serverEncrypt(socket.id, 'friend not online!'));
             } else {
                 const user = userMap.get(socket.id);
                 const forward = {id: user.id, key1: key1};
@@ -118,12 +119,12 @@ module.exports = io => {
 
             const friendClientId = userSocketMap.get(id);
             if (friendClientId === undefined) {
-                ack(serverEncrypt(socket.id, 'friend not online!'));
+                ack(...serverEncrypt(socket.id, 'friend not online!'));
             } else {
                 const user = userMap.get(socket.id);
                 const forward = {id: user.id, key2: key2};
                 const secret = serverEncrypt(friendClientId, JSON.stringify(forward));
-                io.to(friendClientId).emit('receive reply initial chatting', secret[0], secret[1]);
+                io.to(friendClientId).emit('initial chatting reply', secret[0], secret[1]);
             }
         });
 
