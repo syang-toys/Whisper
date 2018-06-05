@@ -125,6 +125,7 @@ module.exports = io => {
                 const forward = {id: user.id, key2: key2};
                 const secret = serverEncrypt(friendClientId, JSON.stringify(forward));
                 io.to(friendClientId).emit('initial chatting reply', secret[0], secret[1]);
+                ack(...serverEncrypt(socket.id, 'exchange secret key!'));
             }
         });
 
