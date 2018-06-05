@@ -3,6 +3,11 @@ package com.syang.whisper;
 import android.app.Application;
 import android.os.Environment;
 
+import com.github.bassaer.chatmessageview.model.Message;
+import com.syang.whisper.activity.ChatActivity;
+import com.syang.whisper.model.Chat;
+import com.syang.whisper.model.MessageList;
+import com.syang.whisper.model.MyMessageStatusFormatter;
 import com.syang.whisper.security.Hash;
 import com.syang.whisper.model.ChatSecret;
 import com.syang.whisper.model.Self;
@@ -35,12 +40,15 @@ public class WhisperApplication extends Application {
     private final User self = new Self();
     private final List<User> friendsList = new ArrayList<>();
     private final List<String> pendingFriends = new ArrayList<>();
-    private final Map<Integer, ChatSecret> chatMap = new TreeMap<>();
+    private final Map<Integer, ChatSecret> chatSecretMap = new TreeMap<>();
+    private final Map<Integer, Chat> chatMap = new TreeMap<>();
+
+    private ChatActivity mChatActivity;
 
     private Socket socket;
     {
         try {
-            socket = IO.socket("http://10.0.2.2:3000/");
+            socket = IO.socket("http://10.131.229.156:3000/");
         } catch (URISyntaxException e) {
             throw new RuntimeException(e);
         }
@@ -84,7 +92,15 @@ public class WhisperApplication extends Application {
     }
 
     public Map<Integer, ChatSecret> getChatSecretMap() {
+        return chatSecretMap;
+    }
+
+    public Map<Integer, Chat> getChatMap() {
         return chatMap;
+    }
+
+    public void setChatActivity(ChatActivity chatActivity) {
+        mChatActivity = chatActivity;
     }
 
     public void emitOnline() {
@@ -112,9 +128,6 @@ public class WhisperApplication extends Application {
     }
 
     public void emitInitialChatting(int id, String key1, Ack ack) {
-        ChatSecret secret = new ChatSecret(key1);
-        secret.setPublicKey(findFriend(id).getPublicKey());
-        chatMap.put(id, secret);
         String data = String.format("{\"id\":\"%s\",\"key1\":\"%s\"}", id, key1);
         String[] encryptSecret = SecureSocket.clientEncrypt(data);
         socket.emit("initial chatting", encryptSecret[0], encryptSecret[1], ack);
@@ -207,8 +220,10 @@ public class WhisperApplication extends Application {
                 String key1 = obj.getString("key1");
                 String key2 = RandomStringUtils.random(16);
                 ChatSecret secret = new ChatSecret(key1+key2);
-                secret.setPublicKey(findFriend(id).getPublicKey());
-                chatMap.put(id, secret);
+                Chat chat = new Chat(new MessageList());
+                chat.setSecret(secret);
+                chat.setFriend(findFriend(id));
+                chatMap.put(id, chat);
                 emitReplyInitialChatting(id, key2, null);
             } catch (Exception ex) {
             }
@@ -223,7 +238,7 @@ public class WhisperApplication extends Application {
                 JSONObject obj = new JSONObject(data);
                 int id = obj.getInt("id");
                 String key2 = obj.getString("key2");
-                chatMap.get(id).updateKey(key2);
+                chatSecretMap.get(id).updateKey(key2);
             } catch (Exception ex) {
             }
         }
@@ -240,13 +255,13 @@ public class WhisperApplication extends Application {
         @Override
         public void call(Object... args) {
             String id = SecureSocket.clientDecrypt((String)args[0], (String)args[1]);
-            ChatSecret secret = findChatSecret(Integer.valueOf(id));
+            Chat chat = chatMap.get(Integer.valueOf(id));
 
-            String content = secret.getChatPlainMsg((String)args[2]);
-            String signature = secret.getChatPlainMsg((String)args[3]);
+            String content = chat.getChatPlainMsg((String)args[2]);
+            String signature = chat.getChatPlainMsg((String)args[3]);
 
-            if (secret.checkSignature(signature, Hash.SHA256Hash(content.getBytes()))) {
-
+            if (chat.checkSignature(signature, Hash.SHA256Hash(content.getBytes()))) {
+                appendMsg(Integer.valueOf(id), content);
             }
         }
     };
@@ -254,15 +269,15 @@ public class WhisperApplication extends Application {
     private Emitter.Listener onFileMsgReceived = new Emitter.Listener() {
         @Override
         public void call(Object... args) {
-            String id = SecureSocket.clientDecrypt((String)args[0], (String)args[1]);
-            ChatSecret secret = findChatSecret(Integer.valueOf(id));
+            int id = Integer.valueOf(SecureSocket.clientDecrypt((String)args[0], (String)args[1]));
+            Chat chat = chatMap.get(id);
 
-            String fileName = secret.getChatPlainMsg((String)args[2]);
-            String content = secret.getChatPlainMsg((String)args[3]);
-            String signature = secret.getChatPlainMsg((String)args[4]);
+            String fileName = chat.getChatPlainMsg((String)args[2]);
+            byte[] content = chat.getChatPlainMsg((byte [])args[3]);
+            String signature = chat.getChatPlainMsg((String)args[4]);
 
-            if (secret.checkSignature(signature, Hash.SHA256Hash(content.getBytes()))) {
-
+            if (chat.checkSignature(signature, Hash.SHA256Hash(content))) {
+                appendMsg(id, fileName, content);
             }
         }
     };
@@ -285,15 +300,34 @@ public class WhisperApplication extends Application {
         return null;
     }
 
-    public ChatSecret findChatSecret(int id) {
-        return chatMap.get(id);
-    }
-
     public ChatSecret findChatSecret(String email) {
         User friend = findFriend(email);
         if (friend != null) {
-            return chatMap.get(Integer.valueOf(friend.getId()));
+            return chatSecretMap.get(Integer.valueOf(friend.getId()));
         }
         return null;
+    }
+
+    private void appendMsg(int id, String text) {
+        Chat chat = chatMap.get(id);
+        if (chat != null) {
+            Message message = new com.github.bassaer.chatmessageview.model.Message.Builder()
+                    .setUser(chat.getFriend())
+                    .setRight(true)
+                    .setText(text)
+                    .setStatusIconFormatter(new MyMessageStatusFormatter(getApplicationContext()))
+                    .setStatusTextFormatter(new MyMessageStatusFormatter(getApplicationContext()))
+                    .setStatusStyle(com.github.bassaer.chatmessageview.model.Message.Companion.getSTATUS_ICON())
+                    .setStatus(1)
+                    .build();
+            chat.getMessageList().add(message);
+            if (mChatActivity != null && mChatActivity.getChat().getFriend().equals(chat.getFriend())) {
+                mChatActivity.sendMsg(message);
+            }
+        }
+    }
+
+    private void appendMsg(int id, String fileName, byte[] data) {
+
     }
 }

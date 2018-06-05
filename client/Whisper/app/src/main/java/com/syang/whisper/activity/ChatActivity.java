@@ -6,24 +6,16 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.graphics.Color;
 import android.net.Uri;
-import android.os.Build;
 import android.os.Bundle;
-import android.os.Handler;
 import android.provider.MediaStore;
-import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AlertDialog;
-import android.util.Base64;
-import android.util.Log;
 import android.view.View;
 import android.widget.Toast;
 
 import com.github.bassaer.chatmessageview.model.Message;
-import com.github.bassaer.chatmessageview.util.ChatBot;
 import com.github.bassaer.chatmessageview.view.ChatView;
-
-
+import com.github.bassaer.chatmessageview.view.MessageView;
 import com.syang.whisper.R;
 import com.syang.whisper.WhisperApplication;
 import com.syang.whisper.model.Chat;
@@ -38,7 +30,9 @@ import com.syang.whisper.utils.FileUtil;
 import org.apache.commons.lang3.RandomStringUtils;
 
 import java.io.File;
-import java.util.Random;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 
 import io.socket.client.Ack;
 
@@ -51,9 +45,7 @@ public class ChatActivity extends Activity {
     private ChatView mChatView;
     private User friend;
     private User me;
-    private ChatSecret mChatSecret;
-    private MessageList mMessageList;
-
+    private Chat mChat;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -64,12 +56,18 @@ public class ChatActivity extends Activity {
         mChatView = (ChatView)findViewById(R.id.chat_view);
         setChatViewListener(mChatView);
 
-
         me = app.getSelf();
         friend = (User)getIntent().getSerializableExtra("user_data");
         initUsers();
 
-        initialChatSecret();
+        initialChat();
+        loadMessage();
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        app.setChatActivity(this);
     }
 
     @Override
@@ -88,9 +86,9 @@ public class ChatActivity extends Activity {
                 byte[] content = FileUtil.fullyReadFileToBytes(file);
                 String signature = Hash.SHA256Hash(content);
 
-                String encryptFileName = mChatSecret.getChatSecretMsg(fileName);
-                byte[] encryptContent = mChatSecret.getChatSecretMsg(content);
-                String encryptSignature = mChatSecret.getChatSecretMsg(signature);
+                String encryptFileName = mChat.getChatSecretMsg(fileName);
+                byte[] encryptContent = mChat.getChatSecretMsg(content);
+                String encryptSignature = mChat.getChatSecretMsg(signature);
 
                 app.emitFileMsg(Integer.valueOf(friend.getId()), encryptFileName, encryptContent, encryptSignature);
             } catch (Exception e) {
@@ -111,9 +109,9 @@ public class ChatActivity extends Activity {
                         .setStatusStyle(Message.Companion.getSTATUS_ICON())
                         .setStatus(MyMessageStatusFormatter.STATUS_DELIVERED)
                         .build();
+
                 mChatView.send(message);
-                //Add message list
-                mMessageList.add(message);
+                mChat.getMessageList().add(message);
             } catch (Exception ex) {
                 Toast.makeText(this, R.string.read_file_error, Toast.LENGTH_LONG).show();
             }
@@ -121,15 +119,25 @@ public class ChatActivity extends Activity {
         super.onActivityResult(requestCode, resultCode, data);
     }
 
-    private void initialChatSecret() {
-        mChatSecret = app.getChatSecretMap().get(Integer.valueOf(friend.getId()));
-        if (mChatSecret == null) {
+    private void initialChat() {
+        final int id = Integer.valueOf(friend.getId());
+        final Map<Integer, Chat> chatMap = app.getChatMap();
+        mChat = chatMap.get(id);
+        if (mChat == null) {
+            mChat = new Chat(new MessageList());
             final String key1 = RandomStringUtils.random(16);
-            final int id = Integer.valueOf(friend.getId());
+            ChatSecret secret = new ChatSecret(key1);
+            mChat.setSecret(secret);
+            mChat.setFriend(friend);
+            chatMap.put(id, mChat);
             app.emitInitialChatting(id, key1, new Ack() {
                 @Override
                 public void call(Object... args) {
-
+                    String message = SecureSocket.clientDecrypt((String)args[0], (String)args[1]);
+                    switch (message) {
+                        case "friend not online!": chatMap.remove(id); break;
+                        case "exchange secret key!": break;
+                    }
                 }
             });
         }
@@ -159,32 +167,32 @@ public class ChatActivity extends Activity {
         mChatView.setOnClickSendButtonListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
+
+                if(mChatView.getInputText().equals("")) {
+                    return;
+                }
                 // new message
                 Message message = new Message.Builder()
                         .setUser(me)
                         .setRight(true)
                         .setText(mChatView.getInputText())
-                        .hideIcon(false)
                         .setStatusIconFormatter(new MyMessageStatusFormatter(ChatActivity.this))
                         .setStatusTextFormatter(new MyMessageStatusFormatter(ChatActivity.this))
                         .setStatusStyle(Message.Companion.getSTATUS_ICON())
                         .setStatus(1)
                         .build();
-
                 // send to server
-                String encryptContent = mChatSecret.getChatSecretMsg(message.getText());
+                String encryptContent = mChat.getChatSecretMsg(message.getText());
                 String signature = Hash.SHA256Hash(message.getText().getBytes());
-                String encryptSignature = mChatSecret.getChatSecretMsg(signature);
+                String encryptSignature = mChat.getChatSecretMsg(signature);
                 app.emitTextMsg(Integer.valueOf(friend.getId()), encryptContent, encryptSignature);
                 //Set to chat view
                 mChatView.send(message);
                 //Add message list
-                mMessageList.add(message);
+                mChat.getMessageList().add(message);
                 //Reset edit text
                 mChatView.setInputText("");
             }
-
-
         });
 
         mChatView.setOnClickOptionButtonListener(new View.OnClickListener() {
@@ -193,6 +201,10 @@ public class ChatActivity extends Activity {
                 showDialog();
             }
         });
+    }
+
+    public void sendMsg(Message msg) {
+        mChatView.send(msg);
     }
 
     private void openGallery() {
@@ -213,6 +225,27 @@ public class ChatActivity extends Activity {
         }
     }
 
+    private void loadMessage() {
+        List<Message> messages = new ArrayList<>();
+        MessageList mMessageList = mChat.getMessageList();
+        if (mMessageList.size() > 0) {
+            for (int i = 0; i < mMessageList.size(); i++) {
+                Message message = mMessageList.get(i);
+                if (message.getUser().equals(friend)) {
+                    message.getUser().setIcon(friend.getIcon());
+                } else {
+                    message.getUser().setIcon(me.getIcon());
+                }
+                message.setStatusStyle(Message.Companion.getSTATUS_ICON_RIGHT_ONLY());
+                message.setStatusIconFormatter(new MyMessageStatusFormatter(this));
+                message.setStatus(MyMessageStatusFormatter.STATUS_DELIVERED);
+                messages.add(message);
+            }
+        }
+        MessageView messageView = mChatView.getMessageView();
+        messageView.init(messages);
+        messageView.setSelection(messageView.getCount() - 1);
+    }
 
     private void showDialog() {
         final String[] items = { getString(R.string.send_picture), getString(R.string.send_file) };
@@ -233,5 +266,10 @@ public class ChatActivity extends Activity {
                     }
                 })
                 .show();
+    }
+
+    /* get set function */
+    public Chat getChat() {
+        return mChat;
     }
 }

@@ -13,13 +13,7 @@ import android.widget.Toast;
 import com.syang.whisper.R;
 import com.syang.whisper.WhisperApplication;
 import com.syang.whisper.adapter.AddAdapter;
-import com.syang.whisper.model.User;
 import com.syang.whisper.request.SecureSocket;
-
-import org.apache.commons.lang3.RandomStringUtils;
-
-import java.util.ArrayList;
-import java.util.List;
 
 import io.socket.client.Ack;
 
@@ -38,7 +32,7 @@ public class AddFragment extends Fragment {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        app = (WhisperApplication)getActivity().getApplication();
+        app = (WhisperApplication) getActivity().getApplication();
     }
 
     @Override
@@ -46,7 +40,7 @@ public class AddFragment extends Fragment {
                              Bundle savedInstanceState) {
         final View layout = inflater.inflate(R.layout.fragment_add, container, false);
         final RecyclerView mRecyclerView = (RecyclerView) layout.findViewById(R.id.add_recycler_view);
-        final SearchView mSearchView = (SearchView)layout.findViewById(R.id.searchView);
+        final SearchView mSearchView = (SearchView) layout.findViewById(R.id.searchView);
         setupSearchView(mSearchView);
         setupRecyclerView(mRecyclerView);
         return layout;
@@ -89,8 +83,8 @@ public class AddFragment extends Fragment {
     @Override
     public void setUserVisibleHint(boolean isVisibleToUser) {
         super.setUserVisibleHint(isVisibleToUser);
-        if(isVisibleToUser) {
-            if(mAddAdapter != null) {
+        if (isVisibleToUser) {
+            if (mAddAdapter != null) {
                 mAddAdapter.notifyDataSetChanged();
             }
         }

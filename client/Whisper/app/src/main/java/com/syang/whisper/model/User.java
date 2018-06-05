@@ -74,4 +74,12 @@ public class User implements IChatUser, Serializable {
         User user = new User();
         return user;
     }
+
+    public boolean equals(Object obj){
+        if (obj != null && obj instanceof User) {
+            User user = (User)obj;
+            return user.getEmail().equals(email) && Integer.valueOf(user.getId()) == id;
+        }
+        return false;
+    }
 }

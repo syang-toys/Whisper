@@ -8,6 +8,7 @@ import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 
 import com.syang.whisper.R;
+import com.syang.whisper.WhisperApplication;
 import com.syang.whisper.adapter.PagerAdapter;
 import com.syang.whisper.fragment.AddFragment;
 import com.syang.whisper.fragment.FriendsFragment;
@@ -15,14 +16,29 @@ import com.syang.whisper.fragment.LoginFragment;
 
 public class MainActivity extends AppCompatActivity {
 
+    private WhisperApplication app;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         setTheme(R.style.AppTheme);
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        app = (WhisperApplication)getApplication();
+
+        app.bindSocketEvents();
+        app.connectSocket();
+        app.emitOnline();
+
         initToolbar();
         initViewPagerAndTabs();
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        app.emitOffline();
+        app.unbindSocketEvents();
     }
 
     private void initToolbar() {

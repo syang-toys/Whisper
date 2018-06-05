@@ -7,7 +7,6 @@ import java.security.PublicKey;
 
 public class ChatSecret {
     private String key;
-    private PublicKey mPublicKey;
 
     public ChatSecret(String key) {
         this.key = key;
@@ -21,24 +20,7 @@ public class ChatSecret {
         this.key = key;
     }
 
-    public void setPublicKey(PublicKey publicKey) {
-        mPublicKey = publicKey;
+    public String getKey() {
+        return key;
     }
-
-    public String getChatSecretMsg(String plainData) {
-        return XXTea.Base64Encrypt(plainData, key);
-    }
-
-    public byte[] getChatSecretMsg(byte[] plainData) {
-        return XXTea.encrypt(plainData, key);
-    }
-
-    public String getChatPlainMsg(String encryptData) {
-        return XXTea.Base64Decrypt(encryptData, key);
-    }
-
-    public boolean checkSignature(String signature, String hash) {
-        return RSA.Base64Decrypt(signature, mPublicKey).equals(hash);
-    }
-
 }
