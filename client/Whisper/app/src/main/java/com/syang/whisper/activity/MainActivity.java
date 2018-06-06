@@ -1,8 +1,12 @@
 package com.syang.whisper.activity;
 
+import android.Manifest;
+import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.support.design.widget.TabLayout;
+import android.support.v4.app.ActivityCompat;
+import android.support.v4.content.ContextCompat;
 import android.support.v4.view.ViewPager;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
@@ -12,7 +16,6 @@ import com.syang.whisper.WhisperApplication;
 import com.syang.whisper.adapter.PagerAdapter;
 import com.syang.whisper.fragment.AddFragment;
 import com.syang.whisper.fragment.FriendsFragment;
-import com.syang.whisper.fragment.LoginFragment;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -24,7 +27,12 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        if (ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(MainActivity.this, new String[]{ Manifest.permission.WRITE_EXTERNAL_STORAGE }, 1);
+        }
+
         app = (WhisperApplication)getApplication();
+        app.setMainActivity(this);
 
         app.bindSocketEvents();
         app.connectSocket();
@@ -56,5 +64,17 @@ public class MainActivity extends AppCompatActivity {
         viewPager.setAdapter(pagerAdapter);
         TabLayout tabLayout = (TabLayout) findViewById(R.id.tabLayout);
         tabLayout.setupWithViewPager(viewPager);
+    }
+
+    public void notifyFriendsUpdate() {
+        FriendsFragment friendsFragment = (FriendsFragment) getSupportFragmentManager().findFragmentByTag(getString(R.string.tab_friends));
+        if (friendsFragment != null) {
+            friendsFragment.notifyFriendsUpdate();
+        }
+    }
+
+    public void notifyPendingFriendsUpdate() {
+        FriendsFragment friendsFragment = (FriendsFragment) getSupportFragmentManager().findFragmentByTag(getString(R.string.tab_friends));
+        friendsFragment.notifyFriendsUpdate();
     }
 }

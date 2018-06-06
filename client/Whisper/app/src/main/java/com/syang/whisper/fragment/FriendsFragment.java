@@ -11,12 +11,6 @@ import android.view.ViewGroup;
 import com.syang.whisper.R;
 import com.syang.whisper.WhisperApplication;
 import com.syang.whisper.adapter.FriendsAdapter;
-import com.syang.whisper.model.User;
-
-import org.apache.commons.lang3.RandomStringUtils;
-
-import java.util.ArrayList;
-import java.util.List;
 
 public class FriendsFragment extends Fragment {
     private FriendsAdapter mFriendsAdapter;
@@ -58,5 +52,10 @@ public class FriendsFragment extends Fragment {
                 mFriendsAdapter.notifyDataSetChanged();
             }
         }
+    }
+
+    public void notifyFriendsUpdate() {
+        mFriendsAdapter.setFriends(app.getFriends());
+        mFriendsAdapter.notifyDataSetChanged();
     }
 }

@@ -9,13 +9,13 @@ import java.security.PrivateKey;
 import java.security.PublicKey;
 
 public class SecureSocket {
-    private static PublicKey mDefaultPublicKey;
-    private static PrivateKey mDefaultPrivateKey;
+    public static PublicKey mDefaultPublicKey;
+    public static PrivateKey mDefaultPrivateKey;
 
     public static String[] clientEncrypt(String data) {
         String key = RandomStringUtils.random(32);
         String encryptData = XXTea.Base64Encrypt(data, key);
-        String encryptKey = RSA.Base64Encrypt(key);
+        String encryptKey = RSA.Base64Encrypt(key, mDefaultPublicKey);
         return new String[]{encryptKey, encryptData};
     }
 

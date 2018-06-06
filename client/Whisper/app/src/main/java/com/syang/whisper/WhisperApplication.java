@@ -1,10 +1,15 @@
 package com.syang.whisper;
 
 import android.app.Application;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.os.Environment;
+import android.util.Log;
+import android.widget.Toast;
 
 import com.github.bassaer.chatmessageview.model.Message;
 import com.syang.whisper.activity.ChatActivity;
+import com.syang.whisper.activity.MainActivity;
 import com.syang.whisper.model.Chat;
 import com.syang.whisper.model.MessageList;
 import com.syang.whisper.model.MyMessageStatusFormatter;
@@ -43,6 +48,7 @@ public class WhisperApplication extends Application {
     private final Map<Integer, ChatSecret> chatSecretMap = new TreeMap<>();
     private final Map<Integer, Chat> chatMap = new TreeMap<>();
 
+    private MainActivity mMainActivity;
     private ChatActivity mChatActivity;
 
     private Socket socket;
@@ -70,6 +76,7 @@ public class WhisperApplication extends Application {
             is.close();
             mServerPublicKey = RSAUtil.getPublicKey(new String(data));
             Restful.setServerPublicKey(mServerPublicKey);
+            SecureSocket.mDefaultPublicKey = mServerPublicKey;
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -101,6 +108,10 @@ public class WhisperApplication extends Application {
 
     public void setChatActivity(ChatActivity chatActivity) {
         mChatActivity = chatActivity;
+    }
+
+    public void setMainActivity(MainActivity mainActivity) {
+        mMainActivity = mainActivity;
     }
 
     public void emitOnline() {
@@ -181,6 +192,7 @@ public class WhisperApplication extends Application {
                     User user = new User(friend.getInt("id"), friend.getString("email"), publicKey);
                     friendsList.add(user);
                 }
+                mMainActivity.notifyFriendsUpdate();
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -224,7 +236,12 @@ public class WhisperApplication extends Application {
                 chat.setSecret(secret);
                 chat.setFriend(findFriend(id));
                 chatMap.put(id, chat);
-                emitReplyInitialChatting(id, key2, null);
+                emitReplyInitialChatting(id, key2, new Ack() {
+                    @Override
+                    public void call(Object... args) {
+
+                    }
+                });
             } catch (Exception ex) {
             }
         }
@@ -238,18 +255,11 @@ public class WhisperApplication extends Application {
                 JSONObject obj = new JSONObject(data);
                 int id = obj.getInt("id");
                 String key2 = obj.getString("key2");
-                chatSecretMap.get(id).updateKey(key2);
+                chatMap.get(id).getSecret().updateKey(key2);
             } catch (Exception ex) {
             }
         }
     };
-
-    private void saveToFile(String fileName, byte[] content) throws IOException {
-        File f = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), fileName);
-        FileOutputStream fos = new FileOutputStream(f);
-        fos.write(content);
-        fos.close();
-    }
 
     private Emitter.Listener onTextMsgReceived = new Emitter.Listener() {
         @Override
@@ -258,11 +268,16 @@ public class WhisperApplication extends Application {
             Chat chat = chatMap.get(Integer.valueOf(id));
 
             String content = chat.getChatPlainMsg((String)args[2]);
-            String signature = chat.getChatPlainMsg((String)args[3]);
+            String signature = (String)args[3];
+
 
             if (chat.checkSignature(signature, Hash.SHA256Hash(content.getBytes()))) {
-                appendMsg(Integer.valueOf(id), content);
+                Log.v("Demo", "Success!");
+            } else {
+                Log.v("Demo", "Failed!");
             }
+
+            appendMsg(Integer.valueOf(id), content);
         }
     };
 
@@ -276,9 +291,9 @@ public class WhisperApplication extends Application {
             byte[] content = chat.getChatPlainMsg((byte [])args[3]);
             String signature = chat.getChatPlainMsg((String)args[4]);
 
-            if (chat.checkSignature(signature, Hash.SHA256Hash(content))) {
-                appendMsg(id, fileName, content);
-            }
+            Log.v("Demo", fileName);
+
+            appendMsg(id, fileName, content);
         }
     };
 
@@ -291,43 +306,88 @@ public class WhisperApplication extends Application {
         return null;
     }
 
-    public User findFriend(String email) {
-        for (User friend : friendsList) {
-            if (email.equals(friend.getEmail())) {
-                return friend;
-            }
-        }
-        return null;
-    }
-
-    public ChatSecret findChatSecret(String email) {
-        User friend = findFriend(email);
-        if (friend != null) {
-            return chatSecretMap.get(Integer.valueOf(friend.getId()));
-        }
-        return null;
-    }
-
     private void appendMsg(int id, String text) {
         Chat chat = chatMap.get(id);
         if (chat != null) {
-            Message message = new com.github.bassaer.chatmessageview.model.Message.Builder()
+
+            Message message = new Message.Builder()
                     .setUser(chat.getFriend())
-                    .setRight(true)
+                    .setRight(false)
                     .setText(text)
                     .setStatusIconFormatter(new MyMessageStatusFormatter(getApplicationContext()))
                     .setStatusTextFormatter(new MyMessageStatusFormatter(getApplicationContext()))
                     .setStatusStyle(com.github.bassaer.chatmessageview.model.Message.Companion.getSTATUS_ICON())
-                    .setStatus(1)
+                    .setStatus(MyMessageStatusFormatter.STATUS_DELIVERED)
                     .build();
+
             chat.getMessageList().add(message);
             if (mChatActivity != null && mChatActivity.getChat().getFriend().equals(chat.getFriend())) {
-                mChatActivity.sendMsg(message);
+                mChatActivity.recvMsg(message);
             }
         }
     }
 
     private void appendMsg(int id, String fileName, byte[] data) {
+        Log.v("Demo", fileName);
+        Chat chat = chatMap.get(id);
+        Bitmap bitmap;
+        if (chat == null) {
+            return;
+        }
+        if (fileName.equals("PICTURE: PNG")) {
+            bitmap = BitmapFactory.decodeByteArray(data, 0, data.length);
+            fileName = null;
+        } else  {
+            bitmap = BitmapFactory.decodeResource(getResources(), R.drawable.plain);
+        }
 
+        Message message1= new Message.Builder()
+                .setRight(false)
+                .setText(Message.Type.PICTURE.name())
+                .setUser(chat.getFriend())
+                .hideIcon(false)
+                .setPicture(bitmap)
+                .setType(Message.Type.PICTURE)
+                .setStatusIconFormatter(new MyMessageStatusFormatter(getApplicationContext()))
+                .setStatusStyle(Message.Companion.getSTATUS_ICON())
+                .setStatus(MyMessageStatusFormatter.STATUS_DELIVERED)
+                .build();
+
+        chat.getMessageList().add(message1);
+
+        if (mChatActivity != null && mChatActivity.getChat().getFriend().equals(chat.getFriend())) {
+            mChatActivity.recvMsg(message1);
+        }
+
+        if (fileName != null) {
+            try {
+                saveToFile(fileName, data);
+            } catch (IOException ex) {
+                Log.e("Demo", ex.getMessage());
+                return;
+            }
+
+            Message message2 = new Message.Builder()
+                    .setUser(chat.getFriend())
+                    .setRight(false)
+                    .setText(fileName)
+                    .setStatusIconFormatter(new MyMessageStatusFormatter(getApplicationContext()))
+                    .setStatusTextFormatter(new MyMessageStatusFormatter(getApplicationContext()))
+                    .setStatusStyle(com.github.bassaer.chatmessageview.model.Message.Companion.getSTATUS_ICON())
+                    .setStatus(MyMessageStatusFormatter.STATUS_DELIVERED)
+                    .build();
+            chat.getMessageList().add(message2);
+
+            if (mChatActivity != null && mChatActivity.getChat().getFriend().equals(chat.getFriend())) {
+                mChatActivity.recvMsg(message2);
+            }
+        }
+    }
+
+    private void saveToFile(String fileName, byte[] content) throws IOException {
+        File f = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), fileName);
+        FileOutputStream fos = new FileOutputStream(f);
+        fos.write(content);
+        fos.close();
     }
 }

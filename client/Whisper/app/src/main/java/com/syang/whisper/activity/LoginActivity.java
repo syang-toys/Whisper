@@ -13,6 +13,7 @@ import com.syang.whisper.fragment.RegisterFragment;
 import com.syang.whisper.model.Self;
 import com.syang.whisper.request.Restful;
 import com.syang.whisper.request.SecureCallback;
+import com.syang.whisper.request.SecureSocket;
 import com.syang.whisper.utils.RSAUtil;
 
 import org.json.JSONException;
@@ -78,6 +79,7 @@ public class LoginActivity extends AppCompatActivity {
                     if (response.code() == 200) {
                         RSAPublicKey publicKey = (RSAPublicKey) RSAUtil.getPublicKey(body.getString("publicKey"));
                         RSAPrivateKey privateKey = (RSAPrivateKey) RSAUtil.getPrivateKey(body.getString("privateKey"));
+                        SecureSocket.mDefaultPrivateKey = privateKey;
                         ((Self)app.getSelf()).initial(body.getInt("id"), email, publicKey, privateKey);
                         finish();
                         Intent intent = new Intent(LoginActivity.this, MainActivity.class);

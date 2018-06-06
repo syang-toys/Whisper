@@ -8,12 +8,14 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.ParcelFileDescriptor;
 import android.provider.MediaStore;
 import android.support.v7.app.AlertDialog;
 import android.view.View;
 import android.widget.Toast;
 
 import com.github.bassaer.chatmessageview.model.Message;
+import com.github.bassaer.chatmessageview.util.ChatBot;
 import com.github.bassaer.chatmessageview.view.ChatView;
 import com.github.bassaer.chatmessageview.view.MessageView;
 import com.syang.whisper.R;
@@ -22,14 +24,20 @@ import com.syang.whisper.model.Chat;
 import com.syang.whisper.model.ChatSecret;
 import com.syang.whisper.model.MessageList;
 import com.syang.whisper.model.MyMessageStatusFormatter;
+import com.syang.whisper.model.Self;
 import com.syang.whisper.model.User;
 import com.syang.whisper.request.SecureSocket;
 import com.syang.whisper.security.Hash;
+import com.syang.whisper.security.RSA;
 import com.syang.whisper.utils.FileUtil;
 
 import org.apache.commons.lang3.RandomStringUtils;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.InputStream;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -78,45 +86,44 @@ public class ChatActivity extends Activity {
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        if (resultCode == RESULT_OK && requestCode == FILE_SELECTION_CODE) {
+        Bitmap picture = null;
+        String fileName = null;
+        byte[] content = null;
+        if (resultCode == RESULT_OK){
             Uri uri = data.getData();
-            File file = new File(FileUtil.getPath(this, uri));
-            try {
-                String fileName = file.getName();
-                byte[] content = FileUtil.fullyReadFileToBytes(file);
-                String signature = Hash.SHA256Hash(content);
-
-                String encryptFileName = mChat.getChatSecretMsg(fileName);
-                byte[] encryptContent = mChat.getChatSecretMsg(content);
-                String encryptSignature = mChat.getChatSecretMsg(signature);
-
-                app.emitFileMsg(Integer.valueOf(friend.getId()), encryptFileName, encryptContent, encryptSignature);
-            } catch (Exception e) {
-                Toast.makeText(this, R.string.read_file_error, Toast.LENGTH_LONG).show();
-            }
-        } else if (resultCode == RESULT_OK && requestCode == READ_REQUEST_CODE) {
-            Uri uri = data.getData();
-            try {
-                Bitmap picture = MediaStore.Images.Media.getBitmap(getContentResolver(), uri);
-                Message message = new Message.Builder()
-                        .setRight(true)
-                        .setText(Message.Type.PICTURE.name())
-                        .setUser(me)
-                        .hideIcon(false)
-                        .setPicture(picture)
-                        .setType(Message.Type.PICTURE)
-                        .setStatusIconFormatter(new MyMessageStatusFormatter(ChatActivity.this))
-                        .setStatusStyle(Message.Companion.getSTATUS_ICON())
-                        .setStatus(MyMessageStatusFormatter.STATUS_DELIVERED)
-                        .build();
-
-                mChatView.send(message);
-                mChat.getMessageList().add(message);
-            } catch (Exception ex) {
-                Toast.makeText(this, R.string.read_file_error, Toast.LENGTH_LONG).show();
+            if (requestCode == FILE_SELECTION_CODE) {
+                try {
+                    File file = new File(FileUtil.getFilePathByUri(this, uri));
+                    fileName = file.getName();
+                    content = FileUtil.fullyReadFileToBytes(file);
+                    picture = BitmapFactory.decodeResource(getResources(), R.drawable.plain);
+                } catch (Exception ex) {
+                }
+            } else if (requestCode == READ_REQUEST_CODE) {
+                try {
+                    picture = MediaStore.Images.Media.getBitmap(getContentResolver(), uri);
+                    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                    picture.compress(Bitmap.CompressFormat.PNG, 100, baos);
+                    content = baos.toByteArray();
+                    fileName = "PICTURE: PNG";
+                } catch (Exception ex) {
+                }
             }
         }
-        super.onActivityResult(requestCode, resultCode, data);
+        if (picture != null) {
+            Message message = newMyMessage(picture);
+            mChatView.send(message);
+            mChat.getMessageList().add(message);
+        }
+        if (fileName != null && content != null) {
+            String signature = Hash.SHA256Hash(content);
+            String encryptFileName = mChat.getChatSecretMsg(fileName);
+            byte[] encryptContent = mChat.getChatSecretMsg(content);
+            String encryptSignature = RSA.Base64Encrypt(signature, ((Self)me).getPrivateKey());
+
+            app.emitFileMsg(Integer.valueOf(friend.getId()), encryptFileName, encryptContent, encryptSignature);
+        }
+         super.onActivityResult(requestCode, resultCode, data);
     }
 
     private void initialChat() {
@@ -172,20 +179,9 @@ public class ChatActivity extends Activity {
                     return;
                 }
                 // new message
-                Message message = new Message.Builder()
-                        .setUser(me)
-                        .setRight(true)
-                        .setText(mChatView.getInputText())
-                        .setStatusIconFormatter(new MyMessageStatusFormatter(ChatActivity.this))
-                        .setStatusTextFormatter(new MyMessageStatusFormatter(ChatActivity.this))
-                        .setStatusStyle(Message.Companion.getSTATUS_ICON())
-                        .setStatus(1)
-                        .build();
+                Message message = newMyMessage(mChatView.getInputText());
                 // send to server
-                String encryptContent = mChat.getChatSecretMsg(message.getText());
-                String signature = Hash.SHA256Hash(message.getText().getBytes());
-                String encryptSignature = mChat.getChatSecretMsg(signature);
-                app.emitTextMsg(Integer.valueOf(friend.getId()), encryptContent, encryptSignature);
+                sendEncryptMsg(message.getText());
                 //Set to chat view
                 mChatView.send(message);
                 //Add message list
@@ -203,8 +199,13 @@ public class ChatActivity extends Activity {
         });
     }
 
-    public void sendMsg(Message msg) {
-        mChatView.send(msg);
+    public void recvMsg(final Message msg) {
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                mChatView.receive(msg);
+            }
+        });
     }
 
     private void openGallery() {
@@ -271,5 +272,39 @@ public class ChatActivity extends Activity {
     /* get set function */
     public Chat getChat() {
         return mChat;
+    }
+
+    private Message newMyMessage(String text) {
+        return new Message.Builder()
+                .setUser(me)
+                .setRight(true)
+                .setText(text)
+                .hideIcon(false)
+                .setStatusIconFormatter(new MyMessageStatusFormatter(ChatActivity.this))
+                .setStatusTextFormatter(new MyMessageStatusFormatter(ChatActivity.this))
+                .setStatusStyle(Message.Companion.getSTATUS_ICON())
+                .setStatus(MyMessageStatusFormatter.STATUS_DELIVERED)
+                .build();
+    }
+
+    private Message newMyMessage(Bitmap picture) {
+        return new Message.Builder()
+                .setRight(true)
+                .setText(Message.Type.PICTURE.name())
+                .setUser(me)
+                .hideIcon(false)
+                .setPicture(picture)
+                .setType(Message.Type.PICTURE)
+                .setStatusIconFormatter(new MyMessageStatusFormatter(ChatActivity.this))
+                .setStatusStyle(Message.Companion.getSTATUS_ICON())
+                .setStatus(MyMessageStatusFormatter.STATUS_DELIVERED)
+                .build();
+    }
+
+    private void sendEncryptMsg(String text) {
+        String encryptContent = mChat.getChatSecretMsg(text);
+        String signature = Hash.SHA256Hash(text.getBytes());
+        String encryptSignature = RSA.Base64Encrypt(mChat.getChatSecretMsg(signature), ((Self)me).getPrivateKey());
+        app.emitTextMsg(Integer.valueOf(friend.getId()), encryptContent, encryptSignature);
     }
 }

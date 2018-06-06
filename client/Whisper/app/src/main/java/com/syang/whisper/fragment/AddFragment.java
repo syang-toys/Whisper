@@ -89,4 +89,8 @@ public class AddFragment extends Fragment {
             }
         }
     }
+
+    public void notifyPendingFriendsUpdate() {
+        mAddAdapter.notifyDataSetChanged();
+    }
 }

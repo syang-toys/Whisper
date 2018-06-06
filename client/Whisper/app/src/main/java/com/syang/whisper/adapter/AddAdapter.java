@@ -64,7 +64,7 @@ public class AddAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>  {
         holder.accept.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                final int pos = holder.getAdapterPosition() - 1;
+                final int pos = holder.getAdapterPosition();
                 final String email = mPendingFriends.get(pos);
                 app.emitAcceptFriendRequest(email, new Ack() {
                     @Override
@@ -88,7 +88,7 @@ public class AddAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>  {
         holder.deny.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                final int pos = holder.getAdapterPosition() - 1;
+                final int pos = holder.getAdapterPosition();
                 final String email = mPendingFriends.get(pos);
                 app.emitDenyFriendRequest(email);
                 app.getPendingFriends().remove(pos);
