@@ -4,6 +4,8 @@ const bodyParser = require('koa-bodyparser');
 
 const controller = require('./controller');
 
+const socket = require('./socket');
+
 const { restify, decrypt, encrypt } = require('./rest');
 
 const app = new Koa();

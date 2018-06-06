@@ -54,7 +54,7 @@ module.exports = {
         ctx.rest({
             id: user.id,
             publicKey: user.publicKey,
-            privateKey: crypto.decrypt('xxtea', user.privateKey, user.passwd)
+            privateKey: crypto.decrypt('xxtea', user.privateKey, password)
         });
 
         await next();

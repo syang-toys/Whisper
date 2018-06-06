@@ -26,18 +26,22 @@ function defineModel(name, attributes, autoId) {
         }
     }
 
-    if (autoId === undefined || autoId) {
-        attrs.id = {
-            type: ID_TYPE,
-            primaryKey: true,
-            autoIncrement: true
-        };
-    }
-
-    return sequelize.define(name, attrs, {
+    attrs.id = {
+        type: ID_TYPE,
+        primaryKey: true,
+        autoIncrement: true
+    };
+    
+    const model = sequelize.define(name, attrs, {
         tableName: name,
         timestamps: false
     });
+
+    if (autoId === false) {
+        model.removeAttribute('id');
+    }
+
+    return model;
 }
 
 const TYPES = ['STRING', 'INTEGER', 'BIGINT', 'TEXT', 'DOUBLE', 'DATEONLY', 'BOOLEAN'];

@@ -1,3 +1,4 @@
+const NodeRSA = require('node-rsa');
 const crypto = require('./crypto');
 const { db, str } = require('./utils');
 
@@ -12,8 +13,8 @@ const serverDecrypt = (key, data) => {
 const serverEncrypt = (clientId, data) => {
     const xxteaKey = str.getRandomString(32);
     const secret = crypto.encrypt('xxtea', data, xxteaKey);
-    const key = crypto.encrypt('rsa',userMap.get(clientId).publicKey);
-    return [key, data];
+    const key = crypto.encrypt('rsa', xxteaKey, userMap.get(clientId).publicKey);
+    return [key, secret];
 }
 
 module.exports = io => {
@@ -27,13 +28,17 @@ module.exports = io => {
             if (!user) {
                 return;
             }
+
+            const rsaPublicKey = new NodeRSA(user.publicKey);
+            rsaPublicKey.setOptions({ encryptionScheme: 'pkcs1' });
             
-            userMap.set(socket.id, { email: email, id: user.id, publicKey: user.publicKey });
+            userMap.set(socket.id, { email: email, id: user.id, publicKey: rsaPublicKey });
             userSocketMap.set(user.id, socket.id);
 
             const friends = await db.getFriends(user.id);
 
             const secret = serverEncrypt(socket.id, JSON.stringify(friends));
+
             io.to(socket.id).emit('friends', secret[0], secret[1]);
         });
 
@@ -42,13 +47,16 @@ module.exports = io => {
             const id = userMap.get(socket.id).id;
 
             userSocketMap.delete(id);
+
             userMap.delete(socket.id);
         });
 
         socket.on('friend request', async (key, data, ack) => {
+
             const friendEmail = serverDecrypt(key, data);
 
-            const friend = await db.getUser(friendEmail, ['id, publicKey']);
+            const friend = await db.getUser(friendEmail, ['id', 'publicKey']);
+
             if (!friend) {
                 ack(...serverEncrypt(socket.id, 'no such user!'));
                 return;
@@ -66,7 +74,7 @@ module.exports = io => {
             const friendClientId = userSocketMap.get(friend.id);
 
             if (friendClientId !== undefined) {
-                const secret = serverEncrypt(friendClientId, email);
+                const secret = serverEncrypt(friendClientId, self.email);
                 io.to(friendClientId).emit('new friend request', secret[0], secret[1]);
             }
 
@@ -76,7 +84,7 @@ module.exports = io => {
         socket.on('accept friend request', async (key, data, ack) => {
             const friendEmail = serverDecrypt(key, data);
 
-            const friend = await db.getUser(friendEmail, ['id, publicKey']);
+            const friend = await db.getUser(friendEmail, ['id', 'publicKey']);
 
             const self = userMap.get(socket.id);
 
@@ -99,10 +107,11 @@ module.exports = io => {
         });
 
         socket.on('initial chatting', (key, data, ack) => {
-            const plain = await serverDecrypt(key, data);
+            const plain = serverDecrypt(key, data);
             const {id, key1} = JSON.parse(plain);
 
-            const friendClientId = userSocketMap.get(id);
+            const friendClientId = userSocketMap.get(parseInt(id));
+
             if (friendClientId === undefined) {
                 ack(...serverEncrypt(socket.id, 'friend not online!'));
             } else {
@@ -114,10 +123,11 @@ module.exports = io => {
         });
 
         socket.on('reply initial chatting', (key, data, ack) => {
-            const plain = await serverDecrypt(key, data);
+            const plain = serverDecrypt(key, data);
             const {id, key2} = JSON.parse(plain);
 
-            const friendClientId = userSocketMap.get(id);
+            const friendClientId = userSocketMap.get(parseInt(id));
+            
             if (friendClientId === undefined) {
                 ack(...serverEncrypt(socket.id, 'friend not online!'));
             } else {
@@ -130,27 +140,30 @@ module.exports = io => {
         });
 
         socket.on('text msg', (key, id, encryptedContent, encryptedSignature) => {
-            const friendId = serverDecrypt(key, id);
+            const friendId = parseInt(serverDecrypt(key, id));
 
-            const friendClientId = userSocketMap.get(id);
+            const friendClientId = userSocketMap.get(friendId);
 
             const self = userMap.get(socket.id);
 
-            const secret = serverEncrypt(friendClientId, self.id);
+            const secret = serverEncrypt(friendClientId, `${self.id}`);
 
             io.to(friendClientId).emit('text msg received', secret[0], secret[1], encryptedContent, encryptedSignature);
         });
 
         socket.on('file msg', (key, id, encryptedFileName, encryptedContent, encryptedSignature) => {
-            const friendId = serverDecrypt(key, id);
+            const friendId = parseInt(serverDecrypt(key, id));
 
-            const friendClientId = userSocketMap.get(id);
+            console.log(friendId);
+            console.log(encryptedFileName);
+
+            const friendClientId = userSocketMap.get(friendId);
 
             const self = userMap.get(socket.id);
 
-            const secret = serverEncrypt(friendClientId, self.id);
+            const secret = serverEncrypt(friendClientId, `${self.id}`);
 
-            io.to(emailIDMap.get(email)).emit('file msg received', secret[0], secret[1], encryptedFileName, encryptedContent, encryptedSignature);
+            io.to(friendClientId).emit('file msg received', secret[0], secret[1], encryptedFileName, encryptedContent, encryptedSignature);
         });
     });
 };

@@ -1,12 +1,14 @@
 const User = require('../models/user');
 const Friend = require('../models/friend');
 
+const Op =  require('sequelize').Op;
+
 module.exports = {
     isFriend: async (id1, id2) => {
         return await Friend.findOne({
             attributes: ['valid'],
             where: {
-                $or: [{
+                [Op.or]: [{
                     id1: id1,
                     id2: id2
                 }, {
@@ -49,11 +51,17 @@ module.exports = {
         await User.create(user);
     },
     getFriends: async (id) => {
-        const friends = await Friend.findAll({ where: { $or: [{ id1: id }, { id2: id }], valid: true } });
-        return friends.map((friend)=>{
-            return friend.id1 === id ? friend.id2 : friend.id1
-        }).map(async (friendId)=>{
-            return await getUserById(friendId, ['id', 'email', 'publicKey']);
+        const relationships = await Friend.findAll({ where: { [Op.or]: [{id1: id}, {id2: id}], valid: true } });
+        const ids = relationships.map((relationship)=>{
+            return relationship.id1 === id ? relationship.id2 : relationship.id1
         });
+        const friends = [];
+        for(let friendId of ids) {
+            const friend = await await User.findOne({where: {id: friendId}, attributes: ['id', 'email', 'publicKey']});
+            friends.push(friend);
+        }
+        return friends.map((friend)=>{
+            return {id: friend.id, email: friend.email, publicKey: friend.publicKey};
+        });        
     }
 }
