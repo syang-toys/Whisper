@@ -4,8 +4,9 @@ import android.app.Application;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.os.Environment;
+import android.util.EventLog;
 import android.util.Log;
-import android.widget.Toast;
+import android.view.accessibility.AccessibilityEvent;
 
 import com.github.bassaer.chatmessageview.model.Message;
 import com.syang.whisper.activity.ChatActivity;
@@ -272,12 +273,11 @@ public class WhisperApplication extends Application {
 
 
             if (chat.checkSignature(signature, Hash.SHA256Hash(content.getBytes()))) {
+                appendMsg(Integer.valueOf(id), content);
                 Log.v("Demo", "Success!");
             } else {
                 Log.v("Demo", "Failed!");
             }
-
-            appendMsg(Integer.valueOf(id), content);
         }
     };
 
@@ -289,11 +289,17 @@ public class WhisperApplication extends Application {
 
             String fileName = chat.getChatPlainMsg((String)args[2]);
             byte[] content = chat.getChatPlainMsg((byte [])args[3]);
-            String signature = chat.getChatPlainMsg((String)args[4]);
+            String signature = (String)args[4];
 
-            Log.v("Demo", fileName);
+            if (chat.checkSignature(signature, Hash.SHA256Hash(content))) {
+                appendMsg(Integer.valueOf(id), fileName, content);
+                Log.v("Demo", "Success!");
+            } else {
+                Log.v("Demo", "Failed!");
 
-            appendMsg(id, fileName, content);
+                AccessibilityEvent event;
+                event.getEventType() == 32;
+            }
         }
     };
 

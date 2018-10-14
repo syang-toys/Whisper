@@ -11,6 +11,7 @@ import android.os.Bundle;
 import android.os.ParcelFileDescriptor;
 import android.provider.MediaStore;
 import android.support.v7.app.AlertDialog;
+import android.util.Log;
 import android.view.View;
 import android.widget.Toast;
 
@@ -304,7 +305,8 @@ public class ChatActivity extends Activity {
     private void sendEncryptMsg(String text) {
         String encryptContent = mChat.getChatSecretMsg(text);
         String signature = Hash.SHA256Hash(text.getBytes());
-        String encryptSignature = RSA.Base64Encrypt(mChat.getChatSecretMsg(signature), ((Self)me).getPrivateKey());
+        Log.v("Demo", signature);
+        String encryptSignature = RSA.Base64Encrypt(signature, ((Self)me).getPrivateKey());
         app.emitTextMsg(Integer.valueOf(friend.getId()), encryptContent, encryptSignature);
     }
 }

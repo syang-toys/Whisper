@@ -23,6 +23,10 @@ public class RSA {
         return Base64.encodeToString(encrypt(data, key), Base64.DEFAULT);
     }
 
+    public void test() {
+
+    }
+
     public static String Base64Decrypt(String data) {
         return Base64Decrypt(data, mDefaultPublicKey);
     }
